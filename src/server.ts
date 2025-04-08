@@ -8,7 +8,7 @@
 import Koa from 'koa';
 import http from 'http';
 import https from 'https';
-import configureSocket from './services/sockets/socketConfig.ts';
+// import configureSocket from './services/sockets/socketConfig.ts';
 import App from './app.ts';
 import fs from 'fs';
 import path from 'path';
@@ -19,7 +19,6 @@ const NODE_ENV = process.env.NODE_ENV?.trim();
 const envPath = path.resolve(`.env.${NODE_ENV}`);
 dotenv.config({ path: envPath });
 const isDev = NODE_ENV === 'development';
-
 // 创建 Koa 实例
 const app = new Koa();
 let httpServer;
@@ -27,8 +26,8 @@ if (isDev) {
   console.log('isDev https');
   httpServer = https.createServer(
     {
-      key: fs.readFileSync('../crt/server.key'),
-      cert: fs.readFileSync('../crt/server.crt'),
+      key: fs.readFileSync(path.resolve('crt/server.key')),
+      cert: fs.readFileSync(path.resolve('crt/server.crt')),
     },
     app.callback(),
   );

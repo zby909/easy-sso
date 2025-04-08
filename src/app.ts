@@ -8,7 +8,7 @@
 // src/app.js
 import bodyParser from 'koa-bodyparser';
 import logger from 'koa-logger';
-import router from './routes/index.ts';
+// import router from './routes/index.ts';
 
 export default app => {
   // 添加中间件
@@ -16,5 +16,5 @@ export default app => {
   app.use(bodyParser());
 
   // 加载路由
-  app.use(router.routes()).use(router.allowedMethods());
+  // app.use(router.routes()).use(router.allowedMethods());
 };
