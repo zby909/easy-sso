@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ESNext", // 目标 ECMAScript 版本
+    "module": "ESNext", // 模块系统
+    "moduleResolution": "Bundler", // 模块解析策略
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "checkJs": false,
+    "allowJs": true,
+    "noImplicitAny": false,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": ".",
+    "useUnknownInCatchVariables": false,
+    "types": ["node"]
+  },
+  "include": ["src/**/*", "./*.ts"],
+  "exclude": ["node_modules", "dist"] // 需要排除的文件夹
+}
