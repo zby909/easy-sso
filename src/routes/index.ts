@@ -6,7 +6,7 @@
  * @Reference:
  */
 // src/routes/index.js
-import Router from 'koa-router';
+import Router from '@koa/router';
 import authRoutes from './authRoutes.ts';
 
 const router = new Router();
