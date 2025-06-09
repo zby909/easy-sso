@@ -5,8 +5,11 @@
  * @LastEditors: zby
  * @Reference:
  */
-// src/utils/logger.js
 import winston from 'winston';
+import path from 'path';
+
+// 创建logs目录下的日志文件
+const logDir = path.join(process.cwd(), 'logs');
 
 /*
   方法解释：
@@ -21,9 +24,21 @@ import winston from 'winston';
   logger.debug('Debugging info');
 */
 const logger = winston.createLogger({
-  level: 'info',
+  level: process.env.LOG_LEVEL || 'info',
   format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
-  transports: [new winston.transports.Console(), new winston.transports.File({ filename: 'combined.log' })],
+  defaultMeta: { service: 'sso-auth' },
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+    }),
+    new winston.transports.File({
+      filename: path.join(logDir, 'error.log'),
+      level: 'error',
+    }),
+    new winston.transports.File({
+      filename: path.join(logDir, 'combined.log'),
+    }),
+  ],
 });
 
 export default logger;

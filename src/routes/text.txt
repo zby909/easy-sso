@@ -1,0 +1,19 @@
+router.get('/loginn', ctx => {
+  console.log(ctx.request.query.session);
+  fetch('https://pmf.q2janus.com/api/pmf/v1/idenfity/tradeToken', {
+    method: 'POST',
+    body: JSON.stringify({
+      session: ctx.request.query.session,
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  }).then(async response => {
+    console.log(response);
+    if (response.ok) {
+      const res = await response.json();
+      console.log(res);
+      return 'ok';
+    }
+  });
+}); // 测试

@@ -6,15 +6,63 @@
  * @Reference:
  */
 // src/app.js
-import bodyParser from 'koa-bodyparser';
-import logger from 'koa-logger';
-// import router from './routes/index.ts';
+import Koa from 'koa';
+import bodyParser from '@koa/bodyparser';
+import koaLogger from 'koa-logger';
+import cors from '@koa/cors';
+import session from 'koa-session';
+import router from './routes/index.ts';
+import errorHandler from './middlewares/errorHandler';
+import logger from './utils/logger';
 
-export default app => {
-  // 添加中间件
-  app.use(logger());
+export default (app: Koa) => {
+  // 配置会话
+  app.keys = [process.env.SESSION_SECRET || 'default_secret_key'];
+
+  // CORS配置 - 允许前端Vue应用访问
+  app.use(
+    cors({
+      origin: ctx => {
+        const allowedOrigins = [
+          'http://localhost:8080', // Vue开发服务器默认端口
+          'http://localhost:5173', // Vite默认端口
+          process.env.FRONTEND_URL, // 生产环境前端URL
+        ].filter(Boolean);
+
+        const requestOrigin = ctx.headers.origin;
+        if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+          return requestOrigin;
+        }
+        return allowedOrigins[0]; // 默认允许的源
+      },
+      credentials: true, // 允许跨域请求携带Cookie
+      allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowHeaders: ['Content-Type', 'Authorization', 'Accept'],
+      maxAge: 86400, // 预检请求有效期（秒）
+    }),
+  );
+
+  // 中间件
   app.use(bodyParser());
+  app.use(koaLogger());
+  app.use(
+    session(
+      {
+        key: 'sso:sess',
+        maxAge: 86400000, // 24小时
+        httpOnly: true,
+        sameSite: 'lax', // 跨站点请求设置
+      },
+      app,
+    ),
+  );
 
-  // 加载路由
-  // app.use(router.routes()).use(router.allowedMethods());
+  // 全局错误处理中间件
+  app.use(errorHandler);
+
+  // 路由
+  app.use(router.routes());
+  app.use(router.allowedMethods());
+
+  logger.info('应用程序初始化完成');
 };

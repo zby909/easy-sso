@@ -22,7 +22,7 @@ const isDev = NODE_ENV === 'development';
 // 创建 Koa 实例
 const app = new Koa();
 let httpServer;
-if (isDev) {
+if (!isDev) {
   console.log('isDev https');
   httpServer = https.createServer(
     {
@@ -40,5 +40,5 @@ App(app);
 
 const PORT = process.env.PORT || 3002;
 httpServer.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on port localhost:${PORT}`);
 });
