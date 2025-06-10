@@ -88,7 +88,13 @@ const login = async (nameOrEmail: string, password: string) => {
 };
 
 // 生成授权码
-const generateAuthCode = (userId: number, code_challenge?: string, code_challenge_method?: string) => {
+const generateAuthCode = (userId: number, code_challenge: string, code_challenge_method?: string) => {
+  // 强制要求PKCE参数
+  if (!code_challenge) {
+    logger.warn(`生成授权码失败: 缺少必需的code_challenge参数`);
+    throw new Error('缺少必需的code_challenge参数，必须使用PKCE');
+  }
+
   // 使用guid生成更安全的授权码
   const code = guid(24, false);
 
@@ -123,32 +129,32 @@ const exchangeCodeForToken = async (code: string, code_verifier?: string): Promi
     throw new Error('授权码已过期');
   }
 
-  // PKCE 校验
-  if (codeData.code_challenge) {
-    if (!code_verifier) {
-      logger.warn('授权码交换失败: 缺少 code_verifier');
-      throw new Error('缺少 code_verifier');
-    }
-    let challenge;
-    if (!codeData.code_challenge_method || codeData.code_challenge_method.toLowerCase() === 'plain') {
-      challenge = code_verifier;
-    } else if (codeData.code_challenge_method.toLowerCase() === 's256') {
-      challenge = crypto
-        .createHash('sha256')
-        .update(code_verifier)
-        .digest()
-        .toString('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
-    } else {
-      logger.warn(`授权码交换失败: 不支持的方法 ${codeData.code_challenge_method}`);
-      throw new Error('不支持的 code_challenge_method');
-    }
-    if (challenge !== codeData.code_challenge) {
-      logger.warn('授权码交换失败: PKCE 校验失败');
-      throw new Error('PKCE 校验失败');
-    }
+  // PKCE 校验 - 强制要求
+  if (!code_verifier) {
+    logger.warn('授权码交换失败: 缺少必需的code_verifier');
+    throw new Error('缺少必需的code_verifier，必须使用PKCE');
+  }
+
+  let challenge;
+  if (!codeData.code_challenge_method || codeData.code_challenge_method.toLowerCase() === 'plain') {
+    challenge = code_verifier;
+  } else if (codeData.code_challenge_method.toLowerCase() === 's256') {
+    challenge = crypto
+      .createHash('sha256')
+      .update(code_verifier)
+      .digest()
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+  } else {
+    logger.warn(`授权码交换失败: 不支持的方法 ${codeData.code_challenge_method}`);
+    throw new Error('不支持的 code_challenge_method');
+  }
+
+  if (challenge !== codeData.code_challenge) {
+    logger.warn('授权码交换失败: PKCE 校验失败');
+    throw new Error('PKCE 校验失败');
   }
 
   // 删除使用过的授权码
@@ -229,16 +235,10 @@ const generateTokenPair = async (userId: number): Promise<TokenResponse> => {
 const refreshAccessToken = async (refreshToken: string, accessToken: string): Promise<TokenResponse> => {
   try {
     // 首先验证访问令牌，即使已过期
-    let accessPayload;
-    try {
-      accessPayload = jwt.verify(accessToken, jwtSecret, { ignoreExpiration: true }) as jwt.JwtPayload;
-      if (accessPayload.type !== 'access') {
-        logger.warn('刷新令牌失败: 无效的访问令牌类型');
-        throw new Error('无效的访问令牌');
-      }
-    } catch (error) {
-      logger.warn(`刷新令牌失败: 无效的访问令牌格式 - ${error.message}`);
-      throw new Error('无效的访问令牌格式: ' + error.message);
+    const accessPayload = jwt.verify(accessToken, jwtSecret, { ignoreExpiration: true }) as jwt.JwtPayload;
+    if (accessPayload.type !== 'access') {
+      logger.warn('刷新令牌失败: 无效的访问令牌类型');
+      throw new Error('无效的访问令牌');
     }
 
     // 验证刷新令牌

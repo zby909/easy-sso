@@ -27,13 +27,12 @@ export default (app: Koa) => {
           'http://localhost:8080', // Vue开发服务器默认端口
           'http://localhost:5173', // Vite默认端口
           process.env.FRONTEND_URL, // 生产环境前端URL
-        ].filter(Boolean);
-
+        ];
         const requestOrigin = ctx.headers.origin;
         if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
           return requestOrigin;
         }
-        return allowedOrigins[0]; // 默认允许的源
+        return '';
       },
       credentials: true, // 允许跨域请求携带Cookie
       allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

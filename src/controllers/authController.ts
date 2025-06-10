@@ -15,6 +15,22 @@ import { AuthRequest } from '../models/interfaces';
 const authorize = async (ctx: Context) => {
   const { redirect_uri, state, code_challenge, code_challenge_method } = ctx.query;
 
+  // 强制要求PKCE参数
+  if (!code_challenge) {
+    logger.warn('授权请求缺少必需的PKCE参数: code_challenge');
+    ctx.status = 400;
+    ctx.body = responseUtil.error('缺少必需的code_challenge参数，必须使用PKCE');
+    return;
+  }
+
+  // 验证code_challenge_method
+  if (code_challenge_method && !['plain', 'S256', 's256'].includes(code_challenge_method as string)) {
+    logger.warn(`无效的code_challenge_method: ${code_challenge_method}`);
+    ctx.status = 400;
+    ctx.body = responseUtil.error('code_challenge_method必须为plain或S256');
+    return;
+  }
+
   // 存储授权请求参数用于后续流程
   if (ctx.session) {
     const authRequest: AuthRequest = {
