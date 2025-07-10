@@ -16,8 +16,8 @@ export interface UserTokenInfo {
 export interface AuthCodeData {
   userId: number;
   expiresAt: Date;
-  code_challenge?: string;
-  code_challenge_method?: string;
+  code_challenge: string;
+  code_challenge_method: string;
 }
 
 // 用户注册/创建输入

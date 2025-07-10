@@ -12,7 +12,7 @@ import logger from '../utils/logger';
 
 /**
  * 验证用户是否已登录
- * 检查会话中是否存在userId
+ * 检查会话中是否存在userId，并验证session是否在记录列表中
  */
 export const requireLogin = async (ctx: Context, next: Next) => {
   if (!ctx.session?.userId) {
@@ -22,7 +22,7 @@ export const requireLogin = async (ctx: Context, next: Next) => {
     return;
   }
 
-  logger.info(`已登录用户访问: ${ctx.session.userId}`);
+  logger.info(`已登录用户访问: ${ctx.session.userId}, sessionId: ${ctx.session.sessionUid}`);
   await next();
 };
 

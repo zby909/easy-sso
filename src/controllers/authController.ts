@@ -9,7 +9,6 @@ import { Context } from 'koa';
 import authService from '../services/authService.ts';
 import responseUtil from '../utils/responseUtil.ts';
 import logger from '../utils/logger.ts';
-import { AuthRequest } from '../models/interfaces';
 
 // 授权端点 - 简化版，无需client_id
 const authorize = async (ctx: Context) => {
@@ -24,27 +23,17 @@ const authorize = async (ctx: Context) => {
   }
 
   // 验证code_challenge_method
-  if (code_challenge_method && !['plain', 'S256', 's256'].includes(code_challenge_method as string)) {
+  if (code_challenge_method && !['S256', 's256'].includes(code_challenge_method as string)) {
     logger.warn(`无效的code_challenge_method: ${code_challenge_method}`);
     ctx.status = 400;
-    ctx.body = responseUtil.error('code_challenge_method必须为plain或S256');
+    // ctx.body = responseUtil.error('code_challenge_method必须为plain或S256');
+    ctx.body = responseUtil.error('code_challenge_method必须为S256');
     return;
-  }
-
-  // 存储授权请求参数用于后续流程
-  if (ctx.session) {
-    const authRequest: AuthRequest = {
-      redirect_uri: redirect_uri as string,
-      state: state as string,
-      code_challenge: code_challenge as string,
-      code_challenge_method: code_challenge_method as string,
-    };
-    ctx.session.authRequest = authRequest;
   }
 
   // 如果用户已登录，则生成授权码
   if (ctx.session?.userId) {
-    const code = authService.generateAuthCode(ctx.session.userId, code_challenge as string, code_challenge_method as string);
+    const code = await authService.generateAuthCode(ctx.session.userId, code_challenge as string, code_challenge_method as string);
 
     logger.info(`已登录用户授权成功: ${ctx.session.userId}`);
 
@@ -57,17 +46,6 @@ const authorize = async (ctx: Context) => {
     });
     return;
   }
-
-  // 用户未登录，返回需要登录的信息
-  logger.info('用户需要登录以完成授权');
-  ctx.body = responseUtil.success(
-    {
-      needLogin: true,
-      authRequest: { redirect_uri, state, code_challenge, code_challenge_method },
-    },
-    '需要登录',
-    401,
-  );
 };
 
 const register = async (ctx: Context) => {
@@ -101,30 +79,7 @@ const login = async (ctx: Context) => {
     const userId = await authService.login(username, password);
 
     // 将用户ID存储在会话中
-    if (ctx.session) {
-      ctx.session.userId = userId;
-    }
-
-    // 如果有待处理的授权请求，生成授权码返回
-    if (ctx.session?.authRequest) {
-      const { redirect_uri, state, code_challenge, code_challenge_method } = ctx.session.authRequest;
-      const code = authService.generateAuthCode(userId, code_challenge, code_challenge_method);
-
-      logger.info(`用户登录成功，生成授权码: ${userId}`);
-
-      // 返回授权信息，由前端处理重定向
-      ctx.body = responseUtil.success(
-        {
-          userId,
-          hasAuthRequest: true,
-          redirect_uri,
-          code,
-          state,
-        },
-        '登录成功',
-      );
-      return;
-    }
+    ctx.session.userId = userId;
 
     logger.info(`用户登录成功: ${userId}`);
     ctx.body = responseUtil.success({ userId }, '登录成功');
@@ -177,14 +132,23 @@ const refreshToken = async (ctx: Context) => {
   }
 };
 
-// 全局注销
-const logout = async (ctx: Context) => {
-  const { refresh_token } = ctx.request.body;
-
-  // 清除会话
-  if (ctx.session) {
-    ctx.session = null;
+//注销登录中心
+const logoutSSO = async (ctx: Context) => {
+  // 检查是否有用户会话，如果有则删除相应记录
+  if (ctx.session?.userId) {
+    logger.info(`用户 ${ctx.session.userId} 成功注销登录中心`);
+  } else {
+    logger.info('没有活动的用户会话，无需特殊处理');
   }
+
+  // 无论是否有活动会话，都清除会话并返回成功
+  ctx.session = null;
+  ctx.body = responseUtil.success(null, '成功注销登录中心');
+};
+
+// 注销token
+const logoutToken = async (ctx: Context) => {
+  const { refresh_token } = ctx.request.body;
 
   if (!refresh_token) {
     ctx.status = 400;
@@ -193,7 +157,7 @@ const logout = async (ctx: Context) => {
   }
 
   // 吊销刷新令牌
-  const success = authService.revokeRefreshToken(refresh_token);
+  const success = await authService.revokeRefreshToken(refresh_token);
 
   if (success) {
     logger.info('用户成功注销');
@@ -211,5 +175,6 @@ export default {
   authorize,
   token,
   refreshToken,
-  logout,
+  logoutToken,
+  logoutSSO,
 };

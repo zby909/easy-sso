@@ -1,5 +1,5 @@
 /*
- * @Description: 内存存储实现
+ * @Description: Redis存储实现
  * @Author: zby
  * @Date: 2024-06-24
  * @LastEditors: zby
@@ -7,82 +7,93 @@
  */
 import { UserTokenInfo, AuthCodeData } from './interfaces';
 import logger from '../utils/logger';
+import redisClient from '../utils/redis';
 
-// 用户令牌存储，同时作为活跃令牌记录和黑名单机制
+// 用户令牌存储，使用Redis
 class TokenStore {
-  private userTokens = new Map<number, UserTokenInfo>();
+  private readonly prefix = 'token:';
+  private readonly expiry = 60 * 60 * 24 * 7; // 7天，与refreshToken一致
 
   // 存储用户令牌
-  set(userId: number, tokenInfo: UserTokenInfo): void {
-    this.userTokens.set(userId, tokenInfo);
+  async set(userId: number, tokenInfo: UserTokenInfo): Promise<void> {
+    const key = this.prefix + userId;
+    await redisClient.set(key, JSON.stringify(tokenInfo), 'EX', this.expiry);
     logger.info(`TokenStore: 存储用户${userId}的令牌`);
   }
 
   // 获取用户令牌
-  get(userId: number): UserTokenInfo | undefined {
-    return this.userTokens.get(userId);
+  async get(userId: number): Promise<UserTokenInfo | undefined> {
+    const key = this.prefix + userId;
+    const data = await redisClient.get(key);
+    if (!data) return undefined;
+
+    try {
+      return JSON.parse(data) as UserTokenInfo;
+    } catch (err) {
+      logger.error(`TokenStore: 解析用户${userId}的令牌数据失败`, err);
+      return undefined;
+    }
   }
 
   // 删除用户令牌
-  delete(userId: number): boolean {
-    logger.info(`TokenStore: 删除用户${userId}的令牌`);
-    return this.userTokens.delete(userId);
+  async delete(userId: number): Promise<boolean> {
+    const key = this.prefix + userId;
+    const result = await redisClient.del(key);
+    const success = result === 1;
+    logger.info(`TokenStore: ${success ? '成功' : '失败'}删除用户${userId}的令牌`);
+    return success;
   }
 
-  // 清空所有令牌
-  clear(): void {
-    this.userTokens.clear();
-    logger.info('TokenStore: 清空所有令牌');
+  // 清空所有令牌 (谨慎使用)
+  async clear(): Promise<void> {
+    const keys = await redisClient.keys(`${this.prefix}*`);
+    if (keys.length > 0) {
+      await redisClient.del(...keys);
+      logger.info(`TokenStore: 清空了${keys.length}个令牌`);
+    }
   }
 }
 
-// 授权码存储
+// 授权码存储，使用Redis
 class AuthCodeStore {
-  private codes = new Map<string, AuthCodeData>();
+  private readonly prefix = 'code:';
+  private readonly expiry = 60 * 10; // 10分钟，与授权码有效期一致
 
   // 存储授权码
-  set(code: string, data: AuthCodeData): void {
-    this.codes.set(code, data);
+  async set(code: string, data: AuthCodeData): Promise<void> {
+    const key = this.prefix + code;
+    await redisClient.set(key, JSON.stringify(data), 'EX', this.expiry);
     logger.info(`AuthCodeStore: 生成授权码，用户ID: ${data.userId}`);
   }
 
   // 获取授权码数据
-  get(code: string): AuthCodeData | undefined {
-    return this.codes.get(code);
+  async get(code: string): Promise<AuthCodeData | undefined> {
+    const key = this.prefix + code;
+    const data = await redisClient.get(key);
+    if (!data) return undefined;
+
+    try {
+      return JSON.parse(data) as AuthCodeData;
+    } catch (err) {
+      logger.error(`AuthCodeStore: 解析授权码数据失败`, err);
+      return undefined;
+    }
   }
 
   // 删除授权码
-  delete(code: string): boolean {
-    logger.info(`AuthCodeStore: 删除授权码`);
-    return this.codes.delete(code);
+  async delete(code: string): Promise<boolean> {
+    const key = this.prefix + code;
+    const result = await redisClient.del(key);
+    const success = result === 1;
+    logger.info(`AuthCodeStore: ${success ? '成功' : '失败'}删除授权码`);
+    return success;
   }
 
-  // 清理过期的授权码
-  cleanExpired(): void {
-    const now = new Date();
-    let expiredCount = 0;
-
-    this.codes.forEach((data, code) => {
-      if (data.expiresAt < now) {
-        this.codes.delete(code);
-        expiredCount++;
-      }
-    });
-
-    if (expiredCount > 0) {
-      logger.info(`AuthCodeStore: 清理了${expiredCount}个过期授权码`);
-    }
-  }
+  // 不再需要定期清理，Redis会根据设置的过期时间自动清理
 }
 
 // 导出单例实例
 export const userTokenStore = new TokenStore();
 export const authCodeStore = new AuthCodeStore();
 
-// 定期清理过期授权码（每10分钟）
-setInterval(
-  () => {
-    authCodeStore.cleanExpired();
-  },
-  10 * 60 * 1000,
-);
+// 不再需要定期清理任务，Redis会自动处理过期的键

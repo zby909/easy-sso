@@ -83,16 +83,26 @@ const login = async (nameOrEmail: string, password: string) => {
     throw new Error('无效的凭据');
   }
 
-  logger.info(`用户登录成功: ${user.id}`);
+  // 更新用户最后登录时间
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date() },
+  });
+
   return user.id;
 };
 
 // 生成授权码
-const generateAuthCode = (userId: number, code_challenge: string, code_challenge_method?: string) => {
-  // 强制要求PKCE参数
+const generateAuthCode = async (userId: number, code_challenge: string, code_challenge_method: string) => {
   if (!code_challenge) {
+    // 强制要求PKCE参数
     logger.warn(`生成授权码失败: 缺少必需的code_challenge参数`);
     throw new Error('缺少必需的code_challenge参数，必须使用PKCE');
+  }
+
+  if (!code_challenge_method) {
+    // 如果未提供code_challenge_method，默认使用S256
+    code_challenge_method = 's256';
   }
 
   // 使用guid生成更安全的授权码
@@ -102,8 +112,8 @@ const generateAuthCode = (userId: number, code_challenge: string, code_challenge
   const expiresAt = new Date();
   expiresAt.setMinutes(expiresAt.getMinutes() + 10);
 
-  // 存储授权码信息
-  authCodeStore.set(code, {
+  // 存储授权码信息 (现在是异步的)
+  await authCodeStore.set(code, {
     userId,
     expiresAt,
     code_challenge,
@@ -115,8 +125,8 @@ const generateAuthCode = (userId: number, code_challenge: string, code_challenge
 };
 
 // 使用授权码交换访问令牌和刷新令牌
-const exchangeCodeForToken = async (code: string, code_verifier?: string): Promise<TokenResponse> => {
-  const codeData = authCodeStore.get(code);
+const exchangeCodeForToken = async (code: string, code_verifier: string): Promise<TokenResponse> => {
+  const codeData = await authCodeStore.get(code);
 
   if (!codeData) {
     logger.warn(`授权码交换失败: 无效的授权码 ${code}`);
@@ -124,7 +134,7 @@ const exchangeCodeForToken = async (code: string, code_verifier?: string): Promi
   }
 
   if (codeData.expiresAt < new Date()) {
-    authCodeStore.delete(code);
+    await authCodeStore.delete(code);
     logger.warn(`授权码交换失败: 授权码已过期 ${code}`);
     throw new Error('授权码已过期');
   }
@@ -136,9 +146,7 @@ const exchangeCodeForToken = async (code: string, code_verifier?: string): Promi
   }
 
   let challenge;
-  if (!codeData.code_challenge_method || codeData.code_challenge_method.toLowerCase() === 'plain') {
-    challenge = code_verifier;
-  } else if (codeData.code_challenge_method.toLowerCase() === 's256') {
+  if (codeData.code_challenge_method.toLowerCase() === 's256') {
     challenge = crypto
       .createHash('sha256')
       .update(code_verifier)
@@ -158,12 +166,12 @@ const exchangeCodeForToken = async (code: string, code_verifier?: string): Promi
   }
 
   // 删除使用过的授权码
-  authCodeStore.delete(code);
+  await authCodeStore.delete(code);
 
   const userId = codeData.userId;
 
   // 检查用户是否已经有有效令牌
-  const existingTokens = userTokenStore.get(userId);
+  const existingTokens = await userTokenStore.get(userId);
   if (existingTokens) {
     // 如果用户已经有令牌，直接返回现有令牌
     // 验证刷新令牌是否过期
@@ -220,8 +228,8 @@ const generateTokenPair = async (userId: number): Promise<TokenResponse> => {
     { expiresIn: '7d' }, // 7天
   );
 
-  // 存储新令牌信息
-  userTokenStore.set(userId, { accessToken, refreshToken });
+  // 存储新令牌信息 (现在是异步的)
+  await userTokenStore.set(userId, { accessToken, refreshToken });
 
   logger.info(`为用户 ${userId} 生成新令牌对`);
   return {
@@ -269,7 +277,7 @@ const refreshAccessToken = async (refreshToken: string, accessToken: string): Pr
     }
 
     // 检查刷新令牌是否是存储中的活跃令牌
-    const storedTokens = userTokenStore.get(userId);
+    const storedTokens = await userTokenStore.get(userId);
     if (!storedTokens || storedTokens.refreshToken !== refreshToken) {
       logger.warn(`刷新令牌失败: 令牌已失效 用户ID=${userId}`);
       throw new Error('刷新令牌已失效');
@@ -288,7 +296,7 @@ const refreshAccessToken = async (refreshToken: string, accessToken: string): Pr
 };
 
 // 吊销刷新令牌
-const revokeRefreshToken = (refreshToken: string): boolean => {
+const revokeRefreshToken = async (refreshToken: string): Promise<boolean> => {
   try {
     // 验证刷新令牌
     const decoded = jwt.verify(refreshToken, refreshSecret) as jwt.JwtPayload;
@@ -302,14 +310,14 @@ const revokeRefreshToken = (refreshToken: string): boolean => {
     const userId = decoded.id;
 
     // 检查是否是当前存储的活跃令牌
-    const storedTokens = userTokenStore.get(userId);
+    const storedTokens = await userTokenStore.get(userId);
     if (!storedTokens || storedTokens.refreshToken !== refreshToken) {
       logger.warn(`吊销令牌失败: 不是活跃令牌 用户ID=${userId}`);
       return false; // 不是当前活跃令牌，可能已被撤销或替换
     }
 
     // 从用户令牌存储中删除
-    userTokenStore.delete(userId);
+    await userTokenStore.delete(userId);
     logger.info(`成功吊销令牌: 用户ID=${userId}`);
     return true;
   } catch (error) {
@@ -319,8 +327,8 @@ const revokeRefreshToken = (refreshToken: string): boolean => {
 };
 
 // 清除令牌（用于系统维护）
-const clearUserTokens = () => {
-  userTokenStore.clear();
+const clearUserTokens = async () => {
+  await userTokenStore.clear();
   logger.info('已清除所有用户令牌');
 };
 

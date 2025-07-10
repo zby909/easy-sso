@@ -11,13 +11,15 @@ import bodyParser from '@koa/bodyparser';
 import koaLogger from 'koa-logger';
 import cors from '@koa/cors';
 import session from 'koa-session';
+import redisStore from 'koa-redis';
 import router from './routes/index.ts';
 import errorHandler from './middlewares/errorHandler';
 import logger from './utils/logger';
+import redisClient from './utils/redis';
 
 export default (app: Koa) => {
   // 配置会话
-  app.keys = [process.env.SESSION_SECRET || 'default_secret_key'];
+  app.keys = [process.env.SESSION_SECRET || 'default_secret_key909908'];
 
   // CORS配置 - 允许前端Vue应用访问
   app.use(
@@ -47,14 +49,20 @@ export default (app: Koa) => {
   app.use(
     session(
       {
-        key: 'sso:sess',
-        maxAge: 86400000, // 24小时
-        httpOnly: true,
+        key: 'sso:sess', // Cookie的名称
+        maxAge: 86400000, // Cookie的有效期为24小时
+        httpOnly: true, // 禁止客户端JavaScript访问
         sameSite: 'lax', // 跨站点请求设置
+        store: redisStore({
+          client: redisClient, // 使用预先创建的Redis客户端
+        }),
       },
       app,
     ),
   );
+
+  // 为了在路由文件中也能使用，将Redis客户端挂载到app.context上
+  app.context.redis = redisClient;
 
   // 全局错误处理中间件
   app.use(errorHandler);
@@ -63,5 +71,5 @@ export default (app: Koa) => {
   app.use(router.routes());
   app.use(router.allowedMethods());
 
-  logger.info('应用程序初始化完成');
+  logger.info('应用程序初始化完成，已配置Redis作为会话和数据存储');
 };
