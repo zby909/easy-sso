@@ -10,7 +10,8 @@
     "build": "tsc -p tsconfig.prod.json",
     "lint": "eslint . --fix",
     "format": "prettier --write src/",
-    "typecheck": "tsc --noEmit --skipLibCheck"
+    "typecheck": "tsc --noEmit --skipLibCheck",
+    "postinstall": "prisma generate"
   },
   "keywords": [],
   "author": "",
