@@ -9,6 +9,7 @@
 import Router from '@koa/router';
 import authController from '../controllers/authController.ts';
 import { validateRedirectUri, requireLogin } from '../middlewares/authMiddleware';
+import { emailRateLimit } from '../middlewares/rateLimitMiddleware';
 import redirectWhitelist from '../config/whitelist.ts';
 
 const router = new Router({
@@ -16,7 +17,7 @@ const router = new Router({
 });
 
 // 发送验证码
-router.post('/verification/send', authController.sendVerificationCode);
+router.post('/verification/send', emailRateLimit, authController.sendVerificationCode);
 
 // 使用验证码注册
 router.post('/register', authController.registerWithVerification);

@@ -24,7 +24,7 @@ const logDir = path.join(process.cwd(), 'logs');
   logger.debug('Debugging info');
 */
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: 'info',
   format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
   defaultMeta: { service: 'sso-auth' },
   transports: [

@@ -10,7 +10,7 @@
  * @param length 字符串长度，建议43-128之间，默认为43
  * @returns 随机字符串，用作code_verifier
  */
-export function generateCodeVerifier(length = 43) {
+function generateCodeVerifier(length = 43) {
   // PKCE规范要求code_verifier长度在43-128之间
   if (length < 43 || length > 128) {
     throw new Error('Code verifier长度必须在43到128个字符之间');
@@ -38,7 +38,7 @@ export function generateCodeVerifier(length = 43) {
  * @param codeVerifier 之前生成的code_verifier
  * @returns Promise<string> 返回base64-url编码的code_challenge
  */
-export async function generateCodeChallenge(codeVerifier) {
+async function generateCodeChallenge(codeVerifier) {
   // 确保传入的code_verifier有效
   if (!codeVerifier || codeVerifier.length < 43 || codeVerifier.length > 128) {
     throw new Error('无效的code_verifier，长度必须在43到128个字符之间');
@@ -60,7 +60,7 @@ export async function generateCodeChallenge(codeVerifier) {
  * @param length code_verifier的长度，默认为43
  * @returns Promise<{codeVerifier: string, codeChallenge: string}>
  */
-export async function generatePKCEPair(length = 43) {
+async function generatePKCEPair(length = 43) {
   const codeVerifier = generateCodeVerifier(length);
   const codeChallenge = await generateCodeChallenge(codeVerifier);
   return {

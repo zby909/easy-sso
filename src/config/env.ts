@@ -17,10 +17,11 @@ const loadEnv = () => {
     const envPath = path.resolve(process.cwd(), `.env.${NODE_ENV}`);
     console.log('尝试加载环境文件:', envPath);
     const envExists = fs.existsSync(envPath);
-    console.log('环境文件是否存在:', envExists);
     if (envExists) {
       dotenv.config({ path: envPath, override: true });
       console.log('成功加载环境文件:', envPath);
+    } else {
+      console.warn(`环境文件不存在: ${envPath}`);
     }
   }
 };

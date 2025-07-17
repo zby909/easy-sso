@@ -14,6 +14,7 @@ import session from 'koa-session';
 import redisStore from 'koa-redis';
 import router from './routes/index.ts';
 import errorHandler from './middlewares/errorHandler';
+import { ipRateLimit } from './middlewares/rateLimitMiddleware';
 import logger from './utils/logger';
 import redisClient from './utils/redis';
 
@@ -46,6 +47,9 @@ export default (app: Koa) => {
   // 中间件
   app.use(bodyParser());
   app.use(koaLogger());
+
+  // 全局频率限制中间件
+  app.use(ipRateLimit);
   app.use(
     session(
       {

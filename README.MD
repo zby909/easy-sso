@@ -1,205 +1,734 @@
 # SSO 认证授权中心
 
-这是一个基于 Koa.js、Prisma 和 TypeScript 构建的单点登录 (SSO) 认证授权中心。它实现了 OAuth 2.0 的授权码流程 (Authorization Code Flow)，并强制使用 PKCE (Proof Key for Code Exchange) 以增强安全性。
+[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
+[![Koa.js](https://img.shields.io/badge/Koa.js-2.15+-lightgrey.svg)](https://koajs.com/)
+[![License](https://img.shields.io/badge/License-ISC-yellow.svg)](LICENSE)
 
-## 主要特性
+🔐 一个基于 OAuth 2.0 + PKCE 标准构建的单点登录(SSO)认证授权中心，提供身份认证和授权服务。
 
-- **用户认证**: 提供用户注册和登录功能。
-- **OAuth 2.0 授权码流程**: 作为认证中心，为第三方应用提供标准的授权服务。
-- **PKCE 安全增强**: 强制要求客户端在授权流程中使用 PKCE，防止授权码被截获和滥用。
-- **令牌管理**: 生成、刷新和吊销 Access Token 和 Refresh Token。
-- **会话管理**: 使用 Koa Session 和 Redis 进行高效、可扩展的会话管理。
-- **数据库**: 使用 Prisma ORM，可以轻松对接 PostgreSQL, MySQL, SQLite 等多种数据库。
-- **技术栈**:
-  - 后端框架: Koa.js
-  - 数据库 ORM: Prisma
-  - 语言: TypeScript
-  - 缓存/会话存储: Redis
-  - 认证机制: JWT (JSON Web Tokens)
+## ✨ 核心特性
 
-## 环境准备
+### 🚀 认证授权
+
+- **OAuth 2.0 授权码流程** - 实现标准 OAuth 2.0 Authorization Code Flow
+- **PKCE 安全增强** - 使用 PKCE (Proof Key for Code Exchange) 防止授权码劫持
+- **JWT 令牌系统** - 支持 Access Token 和 Refresh Token 的生命周期管理
+- **无密码邮箱认证** - 基于邮箱验证码的无密码注册和登录系统
+
+### 🔧 技术架构
+
+- **高性能后端** - 基于 Koa.js 构建的轻量级 Node.js 服务
+- **类型安全** - 使用 TypeScript 开发，提供类型检查和代码提示
+- **数据库抽象** - 使用 Prisma ORM，支持 MySQL、PostgreSQL、SQLite 等数据库
+- **Redis 缓存** - 基于 Redis 的会话管理和数据缓存
+- **日志系统** - 集成 Winston 日志系统，支持文件和控制台输出
+
+### 🛡️ 安全保障
+
+- **无密码认证** - 基于邮箱验证码的无密码登录
+- **会话安全** - 基于 Redis 的分布式会话管理，支持会话过期和销毁
+- **频率限制** - 针对邮件发送和 IP 请求的多层频率限制，防止滥用攻击
+- **CORS 保护** - 跨域资源共享配置，防止恶意请求
+- **重定向白名单** - 重定向 URI 白名单验证机制
+- **令牌验证** - JWT 令牌签名验证和过期检查
+
+## 🏗️ 技术栈
+
+| 分类           | 技术选型   | 版本  | 说明                                      |
+| -------------- | ---------- | ----- | ----------------------------------------- |
+| **运行时**     | Node.js    | 20+   | JavaScript 运行环境                       |
+| **开发语言**   | TypeScript | 5.0+  | 类型安全的 JavaScript 超集                |
+| **Web 框架**   | Koa.js     | 2.15+ | 轻量级 Node.js Web 框架                   |
+| **数据库 ORM** | Prisma     | 6.8+  | 现代化数据库工具包                        |
+| **数据库**     | MySQL      | 8.0+  | 关系型数据库（也支持 PostgreSQL、SQLite） |
+| **缓存/会话**  | Redis      | 6.0+  | 高性能键值存储数据库                      |
+| **认证机制**   | JWT        | 9.0+  | JSON Web Token 令牌系统                   |
+| **日志系统**   | Winston    | 3.15+ | 日志记录库                                |
+| **邮件服务**   | Nodemailer | 7.0+  | Node.js 邮件发送库                        |
+
+## 📋 环境要求
 
 在开始之前，请确保您的开发环境中安装了以下软件：
 
 - [Node.js](https://nodejs.org/) (建议 v20.x 或更高版本)
-- [pnpm](https://pnpm.io/)
-- [Redis](https://redis.io/)
-- 一个关系型数据库 (例如, [PostgreSQL](https://www.postgresql.org/))
+- [pnpm](https://pnpm.io/) (推荐) 或 npm/yarn
+- [Redis](https://redis.io/) (v6.0 或更高版本)
+- [MySQL](https://www.mysql.com/) (v8.0 或更高版本) 或其他 Prisma 支持的数据库
 
-## 安装与配置
+## 🚀 快速开始
 
-1.  **克隆仓库**
+### 1. 克隆项目
 
-    ```bash
-    git clone <your-repository-url>
-    cd sso-auth
-    ```
-
-2.  **安装依赖**
-
-    ```bash
-    pnpm install
-    ```
-
-3.  **配置环境变量**
-    在项目根目录下创建一个 `.env` 文件，并根据 `.env.example` 的格式填写必要的信息。
-
-    ```env
-    # 数据库连接字符串
-    DATABASE_URL="postgresql://user:password@localhost:5432/mydatabase?schema=public"
-
-    # Redis 连接信息
-    REDIS_HOST=127.0.0.1
-    REDIS_PORT=6379
-    # REDIS_PASSWORD=your-redis-password # 如果有密码
-
-    # JWT 和 Session 密钥 (请使用强随机字符串)
-    JWT_SECRET="your_strong_jwt_secret"
-    REFRESH_SECRET="your_strong_refresh_secret"
-    SESSION_SECRET="your_strong_session_secret"
-
-    # 前端应用的 URL (用于 CORS)
-    FRONTEND_URL="http://localhost:8080"
-    ```
-
-4.  **数据库迁移**
-    运行 Prisma migrate 来创建数据库表结构。
-    ```bash
-    pnpm prisma migrate dev --name init
-    ```
-
-## 运行项目
-
-- **开发模式** (带文件监听和自动重启):
-
-  ```bash
-  pnpm dev
-  ```
-
-- **生产模式**:
-
-  ```bash
-  # 1. 构建 TypeScript 代码
-  pnpm build
-
-  # 2. 启动服务
-  pnpm start
-  ```
-
-项目默认运行在 `http://localhost:3000`。
-
-## 认证授权流程 (OAuth 2.0 + PKCE)
-
-本项目的核心是提供单点登录和授权服务。以下是标准的授权流程：
-
-### 第 1 步: 客户端生成 Code Verifier 和 Code Challenge
-
-在发起授权请求之前，客户端（例如一个 Web 应用）需要生成一个 `code_verifier` 和一个 `code_challenge`。
-
-- `code_verifier`: 一个高熵的随机字符串。
-- `code_challenge`: `BASE64URL-ENCODE(SHA256(code_verifier))`
-
-### 第 2 步: 用户登录认证中心
-
-如果用户尚未登录，客户端应用需要引导用户到认证中心进行登录。
-
-- `POST /auth/login`
-  - **Body**: `{ "username": "user@example.com", "password": "password123" }`
-  - **说明**: 用户使用用户名/邮箱和密码登录。成功后，认证中心会通过 Cookie 建立一个 Session。
-
-### 第 3 步: 客户端发起授权请求
-
-用户登录后，客户端将用户重定向到认证中心的 `/authorize` 端点以获取授权码。
-
-- `GET /auth/authorize`
-  - **Query Parameters**:
-    - `redirect_uri`: 客户端用于接收授权码的回调地址（必须在白名单中）。
-    - `state`: 一个随机字符串，用于防止 CSRF 攻击，认证中心会原样返回。
-    - `code_challenge`: 在第 1 步生成的 `code_challenge`。
-    - `code_challenge_method`: 必须为 `S256`。
-  - **说明**:
-    - 此端点需要用户已登录（通过 Session 验证）。
-    - 认证中心验证 `redirect_uri` 和 PKCE 参数。
-    - 成功后，不会直接重定向，而是返回一个 JSON 对象，包含授权码 `code` 和重定向所需信息。前端应根据此信息完成重定向。
-
-### 第 4 步: 客户端使用授权码交换令牌
-
-客户端收到授权码后，从后端向认证中心发起请求，用授权码交换 `access_token` 和 `refresh_token`。
-
-- `POST /auth/token`
-  - **Body**:
-    - `code`: 从上一步获取的授权码。
-    - `code_verifier`: 在第 1 步生成的 `code_verifier`。
-  - **说明**:
-    - 认证中心会验证 `code` 的有效性，并使用 `code_verifier` 和存储的 `code_challenge` 进行 PKCE 校验。
-    - 校验成功后，返回 `access_token` 和 `refresh_token`。
-
-### 第 5 步: 客户端使用 Access Token 访问受保护资源
-
-客户端在请求头中携带 `access_token` 来访问受保护的资源服务器。
-
-```
-Authorization: Bearer <access_token>
+```bash
+git clone https://github.com/zby909/sso-auth.git
+cd sso-auth
 ```
 
-### 第 6 步: 刷新令牌
+### 2. 安装依赖
 
-当 `access_token` 过期时，客户端可以使用 `refresh_token` 来获取新的令牌对，无需用户重新登录。
+```bash
+pnpm install
+```
 
-- `POST /auth/refresh`
-  - **Body**:
-    - `refresh_token`: 长期有效的刷新令牌。
-    - `access_token`: 已过期的访问令牌。
-  - **说明**: 成功后返回新的 `access_token` 和 `refresh_token`。
+### 3. 环境配置
 
-## API 端点
+在项目根目录创建 `.env` 文件：
 
-### 用户认证
+```env
+# 应用配置
+NODE_ENV=development
+PORT=3000
 
-- `POST /auth/register`: 注册新用户。
-- `POST /auth/login`: 用户登录。
-- `POST /auth/logout/center`: 从认证中心注销（清除 Session）。
+# 数据库连接 (MySQL 示例)
+DATABASE_URL="mysql://username:password@localhost:3306/sso_auth"
 
-### OAuth 2.0
+# Redis 配置
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
 
-- `GET /auth/authorize`: 授权端点，获取授权码。
-- `POST /auth/token`: 令牌端点，交换令牌。
-- `POST /auth/refresh`: 刷新令牌。
-- `POST /auth/logout/token`: 注销令牌（吊销 Refresh Token）。
+# 安全密钥 (请使用强随机字符串)
+JWT_SECRET="your_super_secret_jwt_key_here"
+REFRESH_SECRET="your_super_secret_refresh_key_here"
+SESSION_SECRET="your_super_secret_session_key_here"
 
-## 待完成事项
+# CORS 配置
+FRONTEND_URL="http://localhost:8080"
 
-以下是计划中的功能增强：
+# SMTP 邮件配置 (可选，用于验证码发送)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
 
-### 安全增强
+# 频率限制配置
+RATE_LIMIT_EMAIL_WINDOW_MS=60000
+RATE_LIMIT_EMAIL_MAX_REQUESTS=2
+RATE_LIMIT_IP_WINDOW_MS=60000
+RATE_LIMIT_IP_MAX_REQUESTS=200
+```
 
-- **邮箱验证码认证**: 为注册和登录流程添加邮箱验证码，提高账户安全性。
-  - 注册时通过邮箱验证码确认用户身份
-  - 登录时支持邮箱验证码作为双因素认证手段
-  - 密码重置流程优化
+### 4. 数据库初始化
 
-### 客户端管理
+```bash
+# 生成 Prisma 客户端
+pnpm prisma generate
 
-- **完整的客户端（Client）管理系统**:
-  - 创建 `clients` 数据表，存储客户端信息（client_id, client_secret 等）
-  - 开发客户端注册和管理界面
-  - 实现客户端授权范围（scopes）限制
-  - 为不同客户端配置不同的重定向 URI 白名单
-  - 支持客户端访问统计和监控
+# 执行数据库迁移
+pnpm prisma migrate dev --name init
 
-### 前端集成
+# (可选) 查看数据库
+pnpm prisma studio
+```
 
-- **SSO登录页面客户端**:
+### 5. 启动服务
 
-  - 开发一个完整的SSO认证中心前端界面（客户端A）
-  - 实现用户友好的登录、注册和账户管理页面
-  - 处理其他应用(客户端B)重定向过来的认证请求，提取state、redirect_uri、client_id等参数
-  - 用户登录成功后，自动带着code和state重定向回客户端B的redirect_uri
-  - 支持记住登录状态，实现真正的单点登录体验
+```bash
+# 开发模式 (支持热重载)
+pnpm dev
 
-- **第三方应用集成示例**:
-  - 开发示例第三方应用(客户端B)，展示如何接入SSO系统
-  - 实现完整的OAuth 2.0 + PKCE流程，包括生成code_verifier和code_challenge
-  - 演示如何使用返回的code和code_verifier换取access_token和refresh_token
-  - 提供令牌管理、自动刷新和登出的完整实现
-  - 为开发者提供可复用的集成代码库
+# 生产模式
+pnpm build && pnpm start
+```
+
+服务将在 `http://localhost:3000` 启动 🎉
+
+## 📚 OAuth 2.0 + PKCE 认证流程
+
+本系统实现了 OAuth 2.0 授权码流程，并使用 PKCE 增强安全性：
+
+### 🎭 系统角色说明
+
+在完整的SSO认证体系中，包含以下关键角色：
+
+| 角色                   | 说明               | 职责                                            |
+| ---------------------- | ------------------ | ----------------------------------------------- |
+| **️ 客户端应用前端**   | 业务应用的前端部分 | 发起认证请求、处理授权码、存储令牌、调用业务API |
+| **🌐 SSO前端登录中心** | SSO系统的用户界面  | 提供登录页面、收集用户凭证、处理认证交互        |
+| **🔐 SSO后端认证中心** | SSO系统的核心服务  | 验证用户身份、颁发授权码和令牌、管理会话        |
+| **🏢 客户端应用后端**  | 业务应用的后端服务 | 验证SSO令牌、提供业务API、管理业务数据和资源    |
+
+> 💡 **注意**：本项目实现的是 **SSO后端认证中心** 部分，为其他系统提供认证授权服务。
+
+### 🔄 认证流程图
+
+```mermaid
+sequenceDiagram
+    participant ClientFE as 🖥️ 客户端应用前端
+    participant SSOFE as 🌐 SSO前端登录中心
+    participant SSOBE as 🔐 SSO后端认证中心
+    participant ClientBE as 🏢 客户端应用后端
+
+    Note over ClientFE, SSOBE: 1. 准备 PKCE 参数
+    ClientFE->>ClientFE: 生成 code_verifier
+    ClientFE->>ClientFE: 计算 code_challenge = SHA256(code_verifier)
+    ClientFE->>ClientFE: 生成 state 参数
+
+    Note over ClientFE, SSOFE: 2. 重定向到SSO登录中心
+    ClientFE->>ClientFE: 检测需要认证
+    ClientFE->>SSOFE: 重定向到SSO登录页面<br/>(带code_challenge和redirect_uri)
+    SSOFE->>SSOFE: 显示登录页面
+
+    Note over SSOFE, SSOBE: 3. 用户认证（无密码）
+    SSOFE->>SSOFE: 用户输入邮箱地址
+    SSOFE->>SSOBE: 请求发送验证码
+    SSOBE->>SSOFE: 发送邮箱验证码
+    SSOFE->>SSOFE: 用户输入验证码
+    SSOFE->>SSOBE: 提交验证码登录
+    SSOBE->>SSOBE: 验证码校验成功
+
+    Note over SSOBE, ClientFE: 4. 授权码返回
+    SSOBE->>SSOFE: 登录成功，生成授权码
+    SSOFE->>ClientFE: 重定向回客户端(带授权码code)
+    ClientFE->>ClientFE: 接收授权码
+
+    Note over ClientFE, SSOBE: 5. 客户端获取令牌
+    ClientFE->>SSOBE: POST /auth/token<br/>{code, code_verifier}
+    SSOBE->>SSOBE: 验证 code 和 PKCE
+    SSOBE->>ClientFE: 返回 access_token + refresh_token
+    ClientFE->>ClientFE: 存储令牌
+
+    Note over ClientFE, ClientBE: 6. 访问业务资源
+    ClientFE->>ClientBE: 请求业务接口<br/>Authorization: Bearer access_token
+    ClientBE->>ClientBE: 验证JWT令牌
+    ClientBE->>ClientFE: 返回业务响应
+
+    Note over ClientFE, SSOBE: 7. 令牌刷新（可选）
+    ClientFE->>SSOBE: POST /auth/refresh<br/>{refresh_token, access_token}
+    SSOBE->>ClientFE: 返回新的 token 对
+```
+
+### 📝 详细步骤说明
+
+#### 第 1 步：客户端前端准备 PKCE 参数
+
+客户端应用前端在发起授权请求前，需要生成 PKCE 相关参数：
+
+```javascript
+// 生成 code_verifier (43-128 字符的随机字符串)
+const codeVerifier = crypto.randomBytes(32).toString('base64url');
+
+// 生成 code_challenge
+const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
+
+// 生成 state 参数防止 CSRF 攻击
+const state = 'state_' + Date.now();
+```
+
+#### 第 2 步：重定向到SSO登录中心
+
+当客户端前端检测到需要认证时：
+
+```javascript
+// 客户端前端重定向到SSO登录中心
+const authUrl =
+  `https://sso.example.com/login?` +
+  `redirect_uri=${encodeURIComponent(clientRedirectUri)}&` +
+  `state=${state}&` +
+  `code_challenge=${codeChallenge}&` +
+  `code_challenge_method=S256`;
+
+window.location.href = authUrl;
+```
+
+#### 第 3 步：SSO前端处理用户认证
+
+SSO前端登录中心处理用户认证（无密码登录）：
+
+```bash
+# SSO前端请求发送验证码
+POST /auth/verification/send
+{
+  "email": "user@example.com",
+  "purpose": "login"
+}
+
+# SSO前端提交验证码登录
+POST /auth/login
+{
+  "email": "user@example.com",
+  "code": "123456"
+}
+```
+
+#### 第 4 步：SSO返回授权码
+
+用户登录成功后，SSO后端生成授权码并通过前端重定向返回：
+
+```bash
+# SSO后端授权接口
+GET /auth/authorize?redirect_uri=http://localhost:8080&state=state_123&code_challenge=xyz&code_challenge_method=S256
+```
+
+**SSO前端重定向响应：**
+
+```
+HTTP/1.1 302 Found
+Location: http://localhost:8080?code=auth_code_abc123&state=state_123
+```
+
+#### 第 5 步：客户端前端交换访问令牌
+
+客户端前端接收授权码后，直接与SSO后端交换令牌：
+
+```bash
+POST /auth/token
+{
+  "code": "auth_code_abc123",
+  "code_verifier": "original_code_verifier"
+}
+```
+
+**响应示例：**
+
+```json
+{
+  "code": 200,
+  "msg": "令牌获取成功",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIs...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
+    "token_type": "Bearer",
+    "expires_in": 900
+  }
+}
+```
+
+#### 第 6 步：访问客户端业务资源
+
+客户端前端携带访问令牌请求自己的后端服务：
+
+```bash
+# 客户端前端请求自己的后端API
+GET /api/user/profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+```
+
+客户端后端验证令牌并处理业务逻辑：
+
+```javascript
+// 客户端后端验证JWT令牌（本地验证）
+const jwt = require('jsonwebtoken');
+try {
+  const decoded = jwt.verify(token, SSO_PUBLIC_KEY);
+  // 令牌有效，继续处理业务逻辑，返回业务数据
+  const userProfile = await getUserProfile(decoded.id);
+  res.json(userProfile);
+} catch (error) {
+  // 令牌无效，返回401
+  res.status(401).json({ error: 'Invalid token' });
+}
+```
+
+#### 第 7 步：令牌刷新
+
+当访问令牌过期时，客户端前端使用刷新令牌获取新的令牌对：
+
+```bash
+POST /auth/refresh
+{
+  "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
+  "access_token": "eyJhbGciOiJIUzI1NiIs..."
+}
+```
+
+## 📖 API 文档
+
+### 🔐 认证相关接口
+
+| 接口                      | 方法 | 描述               | 认证要求 |
+| ------------------------- | ---- | ------------------ | -------- |
+| `/auth/verification/send` | POST | 发送邮箱验证码     | 无       |
+| `/auth/register`          | POST | 用户注册（无密码） | 无       |
+| `/auth/login`             | POST | 用户登录（无密码） | 无       |
+| `/auth/logout/center`     | POST | 注销登录中心       | Session  |
+
+### 🎫 OAuth 2.0 接口
+
+| 接口                 | 方法 | 描述         | 认证要求 |
+| -------------------- | ---- | ------------ | -------- |
+| `/auth/authorize`    | GET  | 获取授权码   | Session  |
+| `/auth/token`        | POST | 获取访问令牌 | 无       |
+| `/auth/refresh`      | POST | 刷新访问令牌 | 无       |
+| `/auth/logout/token` | POST | 注销令牌     | 无       |
+
+### 错误响应说明
+
+#### 频率限制错误 (429)
+
+当触发频率限制时，服务器返回：
+
+```json
+{
+  "code": 429,
+  "msg": "请求过于频繁，请稍后再试",
+  "data": null
+}
+```
+
+#### 常见错误码
+
+- `400` - 请求参数错误
+- `401` - 认证失败
+- `404` - 资源不存在
+- `429` - 请求频率限制
+- `500` - 服务器内部错误
+
+> 💡 **完整 API 文档**：查看 [`api-docs`](./api-docs/) 目录获取 OpenAPI 格式的详细文档，可直接导入 Apifox、Postman 等工具。
+
+## 🧪 测试
+
+项目提供了测试脚本来验证 OAuth 2.0 + PKCE 流程：
+
+```bash
+# 运行 SSO 测试流程
+node test/sso-complete-test.mjs
+```
+
+测试流程模拟完整的SSO认证过程：
+
+1. ✅ 发送注册验证码（SSO后端）
+2. ✅ 用户注册（SSO后端，无密码）
+3. ✅ 发送登录验证码（SSO后端）
+4. ✅ 用户登录（SSO后端，无密码）
+5. ✅ OAuth 授权获取 code（模拟SSO前端+后端交互）
+6. ✅ 使用 code 获取 token（客户端前端与SSO后端）
+7. ✅ 刷新 access_token（客户端前端与SSO后端）
+8. ✅ 注销 token（客户端前端与SSO后端）
+9. ✅ 注销登录中心（SSO前端与后端）
+
+> 📝 **说明**：测试脚本主要验证SSO后端认证中心的功能，模拟了客户端前端的请求行为。
+
+## 🛠️ 开发指南
+
+### 项目结构
+
+```
+src/
+├── app.ts              # Koa 应用配置
+├── server.ts           # 服务器启动入口
+├── config/
+│   ├── env.ts          # 环境变量加载
+│   └── whitelist.ts    # 重定向 URI 白名单
+├── controllers/        # 控制器层
+│   └── authController.ts
+├── middlewares/        # 中间件
+│   ├── authMiddleware.ts
+│   └── errorHandler.ts
+├── models/            # 数据模型
+│   ├── interfaces.ts  # TypeScript 接口定义
+│   └── stores.ts      # Redis 数据存储
+├── routes/            # 路由定义
+│   ├── authRoutes.ts
+│   └── index.ts
+├── services/          # 业务逻辑层
+│   └── authService.ts
+└── utils/             # 工具函数
+    ├── emailService.ts # 邮件服务
+    ├── logger.ts      # 日志工具
+    ├── redis.ts       # Redis 客户端
+    └── responseUtil.ts # 响应格式化
+```
+
+### 开发脚本
+
+```bash
+# 开发模式 (热重载)
+pnpm dev
+
+# 类型检查
+pnpm typecheck
+
+# 代码格式化
+pnpm format
+
+# 代码检查
+pnpm lint
+
+# 构建生产版本
+pnpm build
+
+# 启动生产服务
+pnpm start
+```
+
+### 数据库操作
+
+```bash
+# 查看数据库状态
+pnpm prisma migrate status
+
+# 重置数据库 (谨慎使用)
+pnpm prisma migrate reset
+
+# 打开数据库管理界面
+pnpm prisma studio
+```
+
+## 🚀 部署指南
+
+### Docker 部署 (推荐)
+
+1. **创建 Docker Compose 文件**
+
+```yaml
+version: '3.8'
+services:
+  sso-auth:
+    build: .
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=mysql://user:password@mysql:3306/sso_auth
+      - REDIS_HOST=redis
+    depends_on:
+      - mysql
+      - redis
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: sso_auth
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  redis:
+    image: redis:6-alpine
+    volumes:
+      - redis_data:/data
+
+volumes:
+  mysql_data:
+  redis_data:
+```
+
+2. **启动服务**
+
+```bash
+docker-compose up -d
+```
+
+### 传统部署
+
+1. **服务器环境准备**
+
+   ```bash
+   # 安装 Node.js 20+
+   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+   sudo apt-get install -y nodejs
+
+   # 安装 PM2 (进程管理器)
+   npm install -g pm2
+   ```
+
+2. **部署应用**
+
+   ```bash
+   # 克隆代码
+   git clone https://github.com/zby909/sso-auth.git
+   cd sso-auth
+
+   # 安装依赖
+   pnpm install --frozen-lockfile
+
+   # 构建应用
+   pnpm build
+
+   # 数据库迁移
+   pnpm prisma migrate deploy
+
+   # 启动服务
+   pm2 start ecosystem.config.js
+   ```
+
+## 🔧 配置说明
+
+### 环境变量详细说明
+
+| 变量名           | 类型   | 默认值      | 说明                              |
+| ---------------- | ------ | ----------- | --------------------------------- |
+| `NODE_ENV`       | string | development | 运行环境 (development/production) |
+| `PORT`           | number | 3000        | 服务端口号                        |
+| `DATABASE_URL`   | string | -           | 数据库连接字符串                  |
+| `REDIS_HOST`     | string | 127.0.0.1   | Redis 主机地址                    |
+| `REDIS_PORT`     | number | 6379        | Redis 端口                        |
+| `REDIS_PASSWORD` | string | -           | Redis 密码 (可选)                 |
+| `JWT_SECRET`     | string | -           | JWT 签名密钥                      |
+| `REFRESH_SECRET` | string | -           | Refresh Token 签名密钥            |
+| `SESSION_SECRET` | string | -           | Session 签名密钥                  |
+| `FRONTEND_URL`   | string | -           | 前端应用 URL (CORS)               |
+| `SMTP_HOST`      | string | -           | SMTP 服务器地址                   |
+| `SMTP_USER`      | string | -           | SMTP 用户名                       |
+| `SMTP_PASS`      | string | -           | SMTP 密码/应用密码                |
+
+### 频率限制配置说明
+
+为防止恶意攻击和资源滥用，系统实现了两层频率限制：
+
+#### 邮箱验证码频率限制
+
+- **目的**：防止恶意发送大量验证码邮件
+- **配置项**：
+  - `RATE_LIMIT_EMAIL_WINDOW_MS`：时间窗口（毫秒），默认60秒
+  - `RATE_LIMIT_EMAIL_MAX_REQUESTS`：窗口内最大请求次数，默认2次
+- **规则**：同一邮箱在60秒内最多只能请求2次验证码
+
+#### IP 全局频率限制
+
+- **目的**：防止单个IP的恶意请求攻击
+- **配置项**：
+  - `RATE_LIMIT_IP_WINDOW_MS`：时间窗口（毫秒），默认60秒
+  - `RATE_LIMIT_IP_MAX_REQUESTS`：窗口内最大请求次数，默认200次
+- **规则**：单个IP在60秒内最多发起200次请求
+
+> ⚠️ **注意**：超过频率限制时，服务器将返回429状态码，客户端应实现适当的重试机制。
+
+### 安全配置建议
+
+1. **生成强密钥**
+
+   ```bash
+   # 生成 32 字节随机密钥
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+
+2. **数据库安全**
+
+   - 使用专用数据库用户，仅授予必要权限
+   - 启用 SSL 连接 (生产环境)
+   - 定期备份数据库
+
+3. **Redis 安全**
+   - 设置强密码
+   - 禁用危险命令 (FLUSHDB, FLUSHALL)
+   - 配置防火墙规则
+
+## 🔍 监控与运维
+
+### 健康检查
+
+```bash
+# 检查服务状态
+curl http://localhost:3000/health
+
+# 查看应用日志
+tail -f logs/combined.log
+
+# 查看错误日志
+tail -f logs/error.log
+```
+
+### 性能监控
+
+```bash
+# PM2 监控
+pm2 monit
+
+# 查看应用状态
+pm2 status
+
+# 重启应用
+pm2 restart sso-auth
+```
+
+## 🛡️ 安全最佳实践
+
+### 1. HTTPS 配置
+
+- 生产环境必须使用 HTTPS
+- 配置 HSTS 头
+- 使用有效的 SSL 证书
+
+### 2. 安全头配置
+
+```javascript
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        // ... 其他 CSP 配置
+      },
+    },
+  }),
+);
+```
+
+### 3. 限流配置
+
+```javascript
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 分钟
+    max: 100, // 限制每个 IP 100 次请求
+  }),
+);
+```
+
+### 4. 日志审计
+
+- 记录所有认证相关操作
+- 监控异常登录行为
+- 定期审查访问日志
+
+## 🤝 贡献指南
+
+欢迎大家贡献代码和建议！
+
+### 开发流程
+
+1. **Fork 项目**
+2. **创建功能分支**
+   ```bash
+   git checkout -b feature/new-feature
+   ```
+3. **提交更改**
+   ```bash
+   git commit -m "feat: add new feature"
+   ```
+4. **推送分支**
+   ```bash
+   git push origin feature/new-feature
+   ```
+5. **创建 Pull Request**
+
+### 代码规范
+
+- 遵循 ESLint 和 Prettier 配置
+- 编写单元测试
+- 添加适当的类型注解
+- 更新相关文档
+
+## 📄 许可证
+
+本项目基于 [ISC License](LICENSE) 开源协议发布。
+
+## 🙏 致谢
+
+感谢以下开源项目：
+
+- [Koa.js](https://koajs.com/) - 轻量级 Node.js Web 框架
+- [Prisma](https://www.prisma.io/) - 现代化数据库工具包
+- [Redis](https://redis.io/) - 高性能键值存储
+- [Winston](https://github.com/winstonjs/winston) - 日志库
+
+## 📞 支持与联系
+
+- **Issues**: [GitHub Issues](https://github.com/zby909/sso-auth/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/zby909/sso-auth/discussions)
+- **邮箱**: your-email@example.com
+
+---
+
+<div align="center">
+
+**⭐ 如果这个项目对您有帮助，欢迎给个 Star！⭐**
+
+Made with ❤️ by [zby909](https://github.com/zby909)
+
+</div>
