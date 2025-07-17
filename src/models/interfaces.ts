@@ -22,9 +22,10 @@ export interface AuthCodeData {
 
 // 用户注册/创建输入
 export interface UserInput {
-  email?: string;
-  password: string;
+  email: string; // 邮箱必填
+  password?: string; // 密码可选
   name: string;
+  verificationCode?: string; // 验证码字段
 }
 
 // 授权请求参数
@@ -40,4 +41,21 @@ export interface TokenResponse {
   access_token: string;
   token_type: string;
   refresh_token: string;
+}
+
+// 新增验证码相关接口
+export interface VerificationRequest {
+  email: string;
+  purpose: 'register' | 'login' | 'reset';
+}
+
+export interface VerificationVerifyRequest {
+  email: string;
+  code: string;
+  purpose: 'register' | 'login' | 'reset';
+}
+
+export interface EmailLoginRequest {
+  email: string;
+  code: string;
 }

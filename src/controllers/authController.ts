@@ -48,48 +48,6 @@ const authorize = async (ctx: Context) => {
   }
 };
 
-const register = async (ctx: Context) => {
-  const { email, password, name } = ctx.request.body;
-  if (!password || !name) {
-    ctx.status = 400;
-    ctx.body = responseUtil.error('用户名和密码是必填项');
-    return;
-  }
-  try {
-    const userId = await authService.register({ email, password, name });
-    logger.info(`用户注册成功: ${userId}`);
-    ctx.status = 201;
-    ctx.body = responseUtil.success({ id: userId }, '注册成功', 201);
-  } catch (error) {
-    logger.warn(`用户注册失败: ${error.message}`);
-    ctx.status = 400;
-    ctx.body = responseUtil.error(error.message);
-  }
-};
-
-const login = async (ctx: Context) => {
-  const { username, password } = ctx.request.body; // 支持用户名或邮箱
-  if (!username || !password) {
-    ctx.status = 400;
-    ctx.body = responseUtil.error('用户名/邮箱和密码是必填项');
-    return;
-  }
-
-  try {
-    const userId = await authService.login(username, password);
-
-    // 将用户ID存储在会话中
-    ctx.session.userId = userId;
-
-    logger.info(`用户登录成功: ${userId}`);
-    ctx.body = responseUtil.success({ userId }, '登录成功');
-  } catch (error) {
-    logger.warn(`登录失败: ${error.message}`);
-    ctx.status = 401;
-    ctx.body = responseUtil.error(error.message || '无效的凭据', 401);
-  }
-};
-
 // 使用授权码获取访问令牌
 const token = async (ctx: Context) => {
   const { code, code_verifier } = ctx.request.body;
@@ -169,12 +127,97 @@ const logoutToken = async (ctx: Context) => {
   }
 };
 
+// 发送验证码
+const sendVerificationCode = async (ctx: Context) => {
+  const { email, purpose } = ctx.request.body;
+
+  if (!email || !purpose) {
+    ctx.status = 400;
+    ctx.body = responseUtil.error('缺少邮箱地址或验证码用途');
+    return;
+  }
+
+  // 验证purpose参数
+  if (!['register', 'login', 'reset'].includes(purpose)) {
+    ctx.status = 400;
+    ctx.body = responseUtil.error('无效的验证码用途，必须是register、login或reset');
+    return;
+  }
+
+  try {
+    await authService.sendVerificationCode(email, purpose);
+    logger.info(`成功发送验证码: ${email}, 用途: ${purpose}`);
+    ctx.body = responseUtil.success(null, '验证码已发送');
+  } catch (error) {
+    logger.warn(`发送验证码失败: ${error.message}`);
+    ctx.status = 400;
+    ctx.body = responseUtil.error(error.message);
+  }
+};
+
+// 使用验证码注册
+const registerWithVerification = async (ctx: Context) => {
+  const { email, name, verificationCode } = ctx.request.body;
+
+  if (!email || !name || !verificationCode) {
+    ctx.status = 400;
+    ctx.body = responseUtil.error('邮箱、用户名和验证码都是必填项');
+    return;
+  }
+
+  try {
+    const userId = await authService.registerWithVerification({
+      email,
+      name,
+      verificationCode,
+    });
+
+    logger.info(`用户通过验证码注册成功: ${userId}`);
+    ctx.status = 201;
+    ctx.body = responseUtil.success({ id: userId }, '注册成功', 201);
+  } catch (error) {
+    logger.warn(`验证码注册失败: ${error.message}`);
+    ctx.status = 400;
+    ctx.body = responseUtil.error(error.message);
+  }
+};
+
+// 使用邮箱验证码登录
+const loginWithEmailCode = async (ctx: Context) => {
+  const { email, code } = ctx.request.body;
+
+  if (!email || !code) {
+    ctx.status = 400;
+    ctx.body = responseUtil.error('邮箱和验证码是必填项');
+    return;
+  }
+
+  try {
+    const userId = await authService.loginWithEmailCode({ email, code });
+
+    // 将用户ID存储在会话中
+    ctx.session.userId = userId;
+
+    // 调试日志 - 确认session被设置
+    logger.info(`登录成功，设置session: userId=${userId}, sessionId=${ctx.session.sessionUid}`);
+    logger.info(`Session内容: ${JSON.stringify(ctx.session)}`);
+
+    logger.info(`用户通过邮箱验证码登录成功: ${userId}`);
+    ctx.body = responseUtil.success({ userId }, '登录成功');
+  } catch (error) {
+    logger.warn(`邮箱验证码登录失败: ${error.message}`);
+    ctx.status = 401;
+    ctx.body = responseUtil.error(error.message, 401);
+  }
+};
+
 export default {
-  login,
-  register,
   authorize,
   token,
   refreshToken,
   logoutToken,
   logoutSSO,
+  sendVerificationCode,
+  registerWithVerification,
+  loginWithEmailCode,
 };

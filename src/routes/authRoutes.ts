@@ -15,11 +15,14 @@ const router = new Router({
   prefix: '/auth',
 });
 
-// 注册账号
-router.post('/register', authController.register);
+// 发送验证码
+router.post('/verification/send', authController.sendVerificationCode);
 
-// 处理登录
-router.post('/login', authController.login);
+// 使用验证码注册
+router.post('/register', authController.registerWithVerification);
+
+// 使用邮箱验证码登录
+router.post('/login', authController.loginWithEmailCode);
 
 // 注销登录中心断点
 router.post('/logout/center', requireLogin, authController.logoutSSO);

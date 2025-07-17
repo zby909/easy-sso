@@ -11,28 +11,27 @@
  * @returns 随机字符串，用作code_verifier
  */
 export function generateCodeVerifier(length = 43) {
-    // PKCE规范要求code_verifier长度在43-128之间
-    if (length < 43 || length > 128) {
-        throw new Error('Code verifier长度必须在43到128个字符之间');
+  // PKCE规范要求code_verifier长度在43-128之间
+  if (length < 43 || length > 128) {
+    throw new Error('Code verifier长度必须在43到128个字符之间');
+  }
+  // 可用于code_verifier的字符集
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  let codeVerifier = '';
+  // 使用加密安全的随机数生成器(如果可用)
+  if (window.crypto && window.crypto.getRandomValues) {
+    const randomValues = new Uint8Array(length);
+    window.crypto.getRandomValues(randomValues);
+    for (let i = 0; i < length; i++) {
+      codeVerifier += possible.charAt(randomValues[i] % possible.length);
     }
-    // 可用于code_verifier的字符集
-    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-    let codeVerifier = '';
-    // 使用加密安全的随机数生成器(如果可用)
-    if (window.crypto && window.crypto.getRandomValues) {
-        const randomValues = new Uint8Array(length);
-        window.crypto.getRandomValues(randomValues);
-        for (let i = 0; i < length; i++) {
-            codeVerifier += possible.charAt(randomValues[i] % possible.length);
-        }
+  } else {
+    // 降级处理(不推荐用于生产环境)
+    for (let i = 0; i < length; i++) {
+      codeVerifier += possible.charAt(Math.floor(Math.random() * possible.length));
     }
-    else {
-        // 降级处理(不推荐用于生产环境)
-        for (let i = 0; i < length; i++) {
-            codeVerifier += possible.charAt(Math.floor(Math.random() * possible.length));
-        }
-    }
-    return codeVerifier;
+  }
+  return codeVerifier;
 }
 /**
  * 使用SHA-256算法从code_verifier生成code_challenge
@@ -40,21 +39,21 @@ export function generateCodeVerifier(length = 43) {
  * @returns Promise<string> 返回base64-url编码的code_challenge
  */
 export async function generateCodeChallenge(codeVerifier) {
-    // 确保传入的code_verifier有效
-    if (!codeVerifier || codeVerifier.length < 43 || codeVerifier.length > 128) {
-        throw new Error('无效的code_verifier，长度必须在43到128个字符之间');
-    }
-    // 转换字符串为Uint8Array
-    const encoder = new TextEncoder();
-    const data = encoder.encode(codeVerifier);
-    // 使用SHA-256哈希函数
-    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
-    // 转换ArrayBuffer为Uint8Array
-    const hashArray = new Uint8Array(hashBuffer);
-    // 转换为base64字符串
-    const base64Hash = btoa(String.fromCharCode(...hashArray));
-    // 转换为base64url格式(符合RFC 7636规范)
-    return base64Hash.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  // 确保传入的code_verifier有效
+  if (!codeVerifier || codeVerifier.length < 43 || codeVerifier.length > 128) {
+    throw new Error('无效的code_verifier，长度必须在43到128个字符之间');
+  }
+  // 转换字符串为Uint8Array
+  const encoder = new TextEncoder();
+  const data = encoder.encode(codeVerifier);
+  // 使用SHA-256哈希函数
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+  // 转换ArrayBuffer为Uint8Array
+  const hashArray = new Uint8Array(hashBuffer);
+  // 转换为base64字符串
+  const base64Hash = btoa(String.fromCharCode(...hashArray));
+  // 转换为base64url格式(符合RFC 7636规范)
+  return base64Hash.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 /**
  * 生成PKCE所需的code_verifier和code_challenge
@@ -62,12 +61,12 @@ export async function generateCodeChallenge(codeVerifier) {
  * @returns Promise<{codeVerifier: string, codeChallenge: string}>
  */
 export async function generatePKCEPair(length = 43) {
-    const codeVerifier = generateCodeVerifier(length);
-    const codeChallenge = await generateCodeChallenge(codeVerifier);
-    return {
-        codeVerifier,
-        codeChallenge,
-    };
+  const codeVerifier = generateCodeVerifier(length);
+  const codeChallenge = await generateCodeChallenge(codeVerifier);
+  return {
+    codeVerifier,
+    codeChallenge,
+  };
 }
 /**
  * 使用示例：

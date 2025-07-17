@@ -1,0 +1,711 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SSO认证授权中心API",
+    "description": "基于OAuth 2.0 + PKCE的单点登录认证授权中心API接口文档",
+    "version": "1.0.0",
+    "contact": {
+      "name": "SSO Team",
+      "email": "support@sso.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "开发环境"
+    }
+  ],
+  "tags": [
+    {
+      "name": "认证",
+      "description": "用户认证相关接口"
+    },
+    {
+      "name": "OAuth2.0",
+      "description": "OAuth 2.0授权流程接口"
+    }
+  ],
+  "paths": {
+    "/auth/verification/send": {
+      "post": {
+        "tags": ["认证"],
+        "summary": "发送验证码",
+        "description": "发送邮箱验证码用于注册、登录或重置密码",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "purpose"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "test@example.com",
+                    "description": "用户邮箱地址"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "enum": ["register", "login", "reset"],
+                    "example": "register",
+                    "description": "验证码用途：register(注册)、login(登录)、reset(重置密码)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "验证码发送成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "code": 200,
+                  "data": null,
+                  "msg": "验证码已发送"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": ["认证"],
+        "summary": "用户注册",
+        "description": "使用邮箱验证码注册新用户",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "name", "verificationCode"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "test@example.com",
+                    "description": "用户邮箱地址"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "testuser",
+                    "description": "用户名"
+                  },
+                  "verificationCode": {
+                    "type": "string",
+                    "example": "123456",
+                    "description": "邮箱验证码"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "注册成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessResponse" },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer",
+                              "example": 1,
+                              "description": "用户ID"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 201,
+                  "data": { "id": 1 },
+                  "msg": "注册成功"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "注册失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["认证"],
+        "summary": "用户登录",
+        "description": "使用邮箱验证码登录",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "code"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "test@example.com",
+                    "description": "用户邮箱地址"
+                  },
+                  "code": {
+                    "type": "string",
+                    "example": "123456",
+                    "description": "邮箱验证码"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登录成功",
+            "headers": {
+              "Set-Cookie": {
+                "description": "设置会话Cookie",
+                "schema": {
+                  "type": "string",
+                  "example": "sso_sess=eyJhbGciOi...; Path=/; HttpOnly"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessResponse" },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "userId": {
+                              "type": "integer",
+                              "example": 1,
+                              "description": "用户ID"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 200,
+                  "data": { "userId": 1 },
+                  "msg": "登录成功"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "登录失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/authorize": {
+      "get": {
+        "tags": ["OAuth2.0"],
+        "summary": "获取授权码",
+        "description": "OAuth 2.0授权端点，获取授权码。需要用户已登录状态。",
+        "security": [
+          {
+            "SessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "redirect_uri",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri",
+              "example": "http://localhost:8080"
+            },
+            "description": "客户端回调地址，必须在白名单中"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "random_state_123456"
+            },
+            "description": "防CSRF攻击的随机字符串"
+          },
+          {
+            "name": "code_challenge",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+            },
+            "description": "PKCE code challenge (SHA256哈希值)"
+          },
+          {
+            "name": "code_challenge_method",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["S256"],
+              "example": "S256"
+            },
+            "description": "PKCE方法，必须为S256"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "授权成功，返回授权码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessResponse" },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "redirect": {
+                              "type": "boolean",
+                              "example": true,
+                              "description": "是否需要重定向"
+                            },
+                            "redirect_uri": {
+                              "type": "string",
+                              "example": "http://localhost:8080",
+                              "description": "重定向地址"
+                            },
+                            "code": {
+                              "type": "string",
+                              "example": "aO20hTfH4GrehkXMUOZYdQ05",
+                              "description": "授权码"
+                            },
+                            "state": {
+                              "type": "string",
+                              "example": "random_state_123456",
+                              "description": "状态参数"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 200,
+                  "data": {
+                    "redirect": true,
+                    "redirect_uri": "http://localhost:8080",
+                    "code": "aO20hTfH4GrehkXMUOZYdQ05",
+                    "state": "random_state_123456"
+                  },
+                  "msg": "操作成功"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/token": {
+      "post": {
+        "tags": ["OAuth2.0"],
+        "summary": "获取访问令牌",
+        "description": "使用授权码交换访问令牌和刷新令牌",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["code", "code_verifier", "redirect_uri"],
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "example": "aO20hTfH4GrehkXMUOZYdQ05",
+                    "description": "授权码"
+                  },
+                  "code_verifier": {
+                    "type": "string",
+                    "example": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+                    "description": "PKCE code verifier"
+                  },
+                  "redirect_uri": {
+                    "type": "string",
+                    "format": "uri",
+                    "example": "http://localhost:8080",
+                    "description": "重定向URI，必须与授权时一致"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "令牌获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessResponse" },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "access_token": {
+                              "type": "string",
+                              "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                              "description": "访问令牌"
+                            },
+                            "token_type": {
+                              "type": "string",
+                              "example": "Bearer",
+                              "description": "令牌类型"
+                            },
+                            "refresh_token": {
+                              "type": "string",
+                              "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                              "description": "刷新令牌"
+                            },
+                            "expires_in": {
+                              "type": "integer",
+                              "example": 3600,
+                              "description": "访问令牌过期时间(秒)"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 200,
+                  "data": {
+                    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "token_type": "Bearer",
+                    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "expires_in": 3600
+                  },
+                  "msg": "操作成功"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数错误或授权码无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": ["OAuth2.0"],
+        "summary": "刷新访问令牌",
+        "description": "使用刷新令牌获取新的访问令牌",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["refresh_token", "access_token"],
+                "properties": {
+                  "refresh_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "description": "刷新令牌"
+                  },
+                  "access_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "description": "当前访问令牌"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "令牌刷新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessResponse" },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "access_token": {
+                              "type": "string",
+                              "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                              "description": "新的访问令牌"
+                            },
+                            "token_type": {
+                              "type": "string",
+                              "example": "Bearer",
+                              "description": "令牌类型"
+                            },
+                            "refresh_token": {
+                              "type": "string",
+                              "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                              "description": "新的刷新令牌"
+                            },
+                            "expires_in": {
+                              "type": "integer",
+                              "example": 3600,
+                              "description": "访问令牌过期时间(秒)"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "code": 200,
+                  "data": {
+                    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "token_type": "Bearer",
+                    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "expires_in": 3600
+                  },
+                  "msg": "操作成功"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "刷新令牌无效或过期",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout/token": {
+      "post": {
+        "tags": ["OAuth2.0"],
+        "summary": "注销令牌",
+        "description": "注销刷新令牌，使其失效",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["refresh_token"],
+                "properties": {
+                  "refresh_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "description": "要注销的刷新令牌"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "令牌注销成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "code": 200,
+                  "data": null,
+                  "msg": "成功注销"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "令牌无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout/center": {
+      "post": {
+        "tags": ["认证"],
+        "summary": "注销登录中心",
+        "description": "从认证中心注销，清除用户会话",
+        "security": [
+          {
+            "SessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "注销成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "code": 200,
+                  "data": null,
+                  "msg": "成功注销登录中心"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "example": 200,
+            "description": "状态码"
+          },
+          "data": {
+            "type": "object",
+            "nullable": true,
+            "description": "响应数据"
+          },
+          "msg": {
+            "type": "string",
+            "example": "操作成功",
+            "description": "响应消息"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "example": 400,
+            "description": "错误状态码"
+          },
+          "data": {
+            "type": "object",
+            "nullable": true,
+            "description": "错误数据"
+          },
+          "msg": {
+            "type": "string",
+            "example": "请求参数错误",
+            "description": "错误消息"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "SessionAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "sso_sess",
+        "description": "Session Cookie认证"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT Bearer Token"
+      }
+    }
+  }
+}

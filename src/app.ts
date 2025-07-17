@@ -49,10 +49,13 @@ export default (app: Koa) => {
   app.use(
     session(
       {
-        key: 'sso:sess', // Cookie的名称
+        key: 'sso_sess', // Cookie的名称 (去掉冒号避免与Redis命名空间冲突)
         maxAge: 86400000, // Cookie的有效期为24小时
         httpOnly: true, // 禁止客户端JavaScript访问
         sameSite: 'lax', // 跨站点请求设置
+        secure: false, // 开发环境允许HTTP
+        overwrite: true, // 允许覆盖
+        signed: true, // 签名cookie
         store: redisStore({
           client: redisClient, // 使用预先创建的Redis客户端
         }),

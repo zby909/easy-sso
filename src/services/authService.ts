@@ -5,92 +5,18 @@
  * @LastEditors: zby
  * @Reference:
  */
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
-import { UserInput, TokenResponse } from '../models/interfaces';
-import { userTokenStore, authCodeStore } from '../models/stores';
+import { UserInput, TokenResponse, EmailLoginRequest } from '../models/interfaces';
+import { userTokenStore, authCodeStore, verificationCodeStore } from '../models/stores';
 import logger from '../utils/logger';
 import guid from '../utils/guid';
+import emailService from '../utils/emailService';
 
 const prisma = new PrismaClient();
-const saltRounds = 10;
 const jwtSecret = process.env.JWT_SECRET || 'your_jwt_secret';
 const refreshSecret = process.env.REFRESH_SECRET || 'your_refresh_secret';
-
-// 用户注册
-const register = async (user: UserInput) => {
-  const { email, password, name } = user;
-
-  if (!password || !name) {
-    throw new Error('用户名和密码是必填项');
-  }
-
-  // 检查用户名是否已存在
-  const existingUserByName = await prisma.user.findUnique({
-    where: { name },
-  });
-
-  if (existingUserByName) {
-    throw new Error('此用户名已被注册');
-  }
-
-  // 如果提供了邮箱，检查邮箱是否已存在
-  if (email) {
-    const existingUserByEmail = await prisma.user.findUnique({
-      where: { email },
-    });
-    if (existingUserByEmail) {
-      throw new Error('此邮箱已被注册');
-    }
-  }
-
-  // Hash password
-  const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-  // Insert new user record
-  const newUser = await prisma.user.create({
-    data: {
-      email: email || null, // 如果未提供邮箱，则为null
-      password: hashedPassword,
-      name, // 用户名（账号）
-    },
-  });
-
-  logger.info(`新用户注册成功: ${newUser.id}`);
-  return newUser.id;
-};
-
-// 用户登录
-const login = async (nameOrEmail: string, password: string) => {
-  // 查找用户，支持使用用户名或邮箱登录
-  const user = await prisma.user.findFirst({
-    where: {
-      OR: [{ email: nameOrEmail }, { name: nameOrEmail }],
-    },
-  });
-
-  if (!user) {
-    logger.info(`登录失败: 用户不存在 - ${nameOrEmail}`);
-    throw new Error('无效的凭据');
-  }
-
-  // 验证密码
-  const match = await bcrypt.compare(password, user.password);
-  if (!match) {
-    logger.info(`登录失败: 密码错误 - ${nameOrEmail}`);
-    throw new Error('无效的凭据');
-  }
-
-  // 更新用户最后登录时间
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { lastLoginAt: new Date() },
-  });
-
-  return user.id;
-};
 
 // 生成授权码
 const generateAuthCode = async (userId: number, code_challenge: string, code_challenge_method: string) => {
@@ -332,12 +258,147 @@ const clearUserTokens = async () => {
   logger.info('已清除所有用户令牌');
 };
 
+// 发送邮箱验证码
+const sendVerificationCode = async (email: string, purpose: 'register' | 'login' | 'reset'): Promise<boolean> => {
+  if (!email) {
+    logger.warn('发送验证码失败: 缺少邮箱地址');
+    throw new Error('缺少邮箱地址');
+  }
+
+  // 验证邮箱格式
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    logger.warn(`发送验证码失败: 邮箱格式不正确 ${email}`);
+    throw new Error('邮箱格式不正确');
+  }
+
+  // 生成验证码
+  const code = emailService.generateVerificationCode();
+
+  // 如果是注册验证码，先检查邮箱是否已注册
+  if (purpose === 'register') {
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+    if (existingUser) {
+      logger.warn(`发送注册验证码失败: 邮箱已被注册 ${email}`);
+      throw new Error('此邮箱已被注册');
+    }
+  }
+
+  // 如果是登录或重置密码验证码，先检查邮箱是否存在
+  if (purpose === 'login' || purpose === 'reset') {
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+    if (!existingUser) {
+      logger.warn(`发送${purpose === 'login' ? '登录' : '重置密码'}验证码失败: 邮箱未注册 ${email}`);
+      throw new Error('此邮箱未注册');
+    }
+  }
+
+  // 存储验证码
+  await verificationCodeStore.set(email, code, purpose);
+
+  // 发送验证码邮件
+  const sent = await emailService.sendVerificationCode(email, code, purpose);
+  if (!sent) {
+    logger.error(`发送验证码邮件失败: ${email}`);
+    throw new Error('发送验证码邮件失败，请稍后重试');
+  }
+
+  logger.info(`验证码已发送: ${email}, 用途: ${purpose}`);
+  return true;
+};
+
+// 使用验证码注册
+const registerWithVerification = async (user: UserInput): Promise<number> => {
+  const { email, name, verificationCode } = user;
+
+  if (!email || !name || !verificationCode) {
+    throw new Error('邮箱、用户名和验证码都是必填项');
+  }
+
+  // 验证验证码
+  const isCodeValid = await verificationCodeStore.verify(email, verificationCode, 'register');
+  if (!isCodeValid) {
+    logger.warn(`注册失败: 验证码无效 ${email}`);
+    throw new Error('验证码无效或已过期');
+  }
+
+  // 验证通过，继续注册流程
+  // 检查用户名是否已存在
+  const existingUserByName = await prisma.user.findUnique({
+    where: { name },
+  });
+
+  if (existingUserByName) {
+    throw new Error('此用户名已被注册');
+  }
+
+  // 检查邮箱是否已存在
+  const existingUserByEmail = await prisma.user.findUnique({
+    where: { email },
+  });
+  if (existingUserByEmail) {
+    throw new Error('此邮箱已被注册');
+  }
+
+  // 创建新用户 (无密码)
+  const newUser = await prisma.user.create({
+    data: {
+      email,
+      name,
+    },
+  });
+
+  logger.info(`用户注册成功: ${newUser.id}`);
+  return newUser.id;
+};
+
+// 使用邮箱验证码登录
+const loginWithEmailCode = async (loginData: EmailLoginRequest): Promise<number> => {
+  const { email, code } = loginData;
+
+  if (!email || !code) {
+    throw new Error('邮箱和验证码是必填项');
+  }
+
+  // 验证验证码
+  const isCodeValid = await verificationCodeStore.verify(email, code, 'login');
+  if (!isCodeValid) {
+    logger.warn(`邮箱验证码登录失败: 验证码无效 ${email}`);
+    throw new Error('验证码无效或已过期');
+  }
+
+  // 查找用户
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user) {
+    logger.warn(`邮箱验证码登录失败: 用户不存在 - ${email}`);
+    throw new Error('用户不存在');
+  }
+
+  // 更新用户最后登录时间
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date() },
+  });
+
+  logger.info(`用户通过邮箱验证码登录成功: ${user.id}`);
+  return user.id;
+};
+
 export default {
-  register,
-  login,
   generateAuthCode,
   exchangeCodeForToken,
   refreshAccessToken,
   revokeRefreshToken,
   clearUserTokens,
+  // 邮箱验证码相关方法
+  sendVerificationCode,
+  registerWithVerification,
+  loginWithEmailCode,
 };

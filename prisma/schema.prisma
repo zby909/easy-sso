@@ -12,8 +12,8 @@ datasource db {
 
 model User {
   id          Int       @id @default(autoincrement())
-  email       String?   @unique  // 将email改为可选字段
-  password    String   
+  email       String    @unique  // 邮箱必填且唯一
+  password    String?   // 密码设为可选字段，用于兼容旧数据
   name        String    @unique  // 添加唯一约束确保用户名唯一
   createdAt   DateTime  @default(now()) @map("created_at")
   lastLoginAt DateTime? @map("last_login_at") // 添加最后登录时间字段，可为空
