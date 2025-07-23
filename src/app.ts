@@ -19,6 +19,9 @@ import logger from './utils/logger';
 import redisClient from './utils/redis';
 
 export default (app: Koa) => {
+  const NODE_ENV = process.env.NODE_ENV?.trim();
+  const isDev = NODE_ENV === 'development';
+
   // 配置会话
   app.keys = [process.env.SESSION_SECRET || 'default_secret_key909908'];
 
@@ -57,7 +60,7 @@ export default (app: Koa) => {
         maxAge: 86400000, // Cookie的有效期为24小时
         httpOnly: true, // 禁止客户端JavaScript访问
         sameSite: 'lax', // 跨站点请求设置
-        secure: false, // 开发环境允许HTTP
+        secure: !isDev, // 生产环境下使用HTTPS时设置为true
         overwrite: true, // 允许覆盖
         signed: true, // 签名cookie
         store: redisStore({
