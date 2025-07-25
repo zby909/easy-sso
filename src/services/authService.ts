@@ -391,6 +391,28 @@ const loginWithEmailCode = async (loginData: EmailLoginRequest): Promise<number>
   return user.id;
 };
 
+// 获取用户信息
+const getUserInfo = async (userId: number) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      createdAt: true,
+      lastLoginAt: true,
+    },
+  });
+
+  if (!user) {
+    logger.warn(`获取用户信息失败: 用户不存在 ID=${userId}`);
+    throw new Error('用户不存在');
+  }
+
+  logger.info(`成功获取用户信息: 用户ID=${userId}`);
+  return user;
+};
+
 export default {
   generateAuthCode,
   exchangeCodeForToken,
@@ -401,4 +423,5 @@ export default {
   sendVerificationCode,
   registerWithVerification,
   loginWithEmailCode,
+  getUserInfo,
 };

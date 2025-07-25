@@ -211,6 +211,20 @@ const loginWithEmailCode = async (ctx: Context) => {
   }
 };
 
+// 获取用户信息
+const getUserInfo = async (ctx: Context) => {
+  const userId = ctx.session.userId;
+
+  try {
+    const userInfo = await authService.getUserInfo(userId);
+    ctx.body = responseUtil.success(userInfo);
+  } catch (error) {
+    logger.warn(`获取用户信息失败: ${error.message}`);
+    ctx.status = 404;
+    ctx.body = responseUtil.error(error.message, 404);
+  }
+};
+
 export default {
   authorize,
   token,
@@ -220,4 +234,5 @@ export default {
   sendVerificationCode,
   registerWithVerification,
   loginWithEmailCode,
+  getUserInfo,
 };

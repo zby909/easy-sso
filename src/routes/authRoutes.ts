@@ -41,4 +41,7 @@ router.post('/refresh', authController.refreshToken);
 // 注销token端点
 router.post('/logout/token', authController.logoutToken);
 
+// 获取用户信息端点
+router.get('/userinfo', requireLogin, authController.getUserInfo);
+
 export default router;

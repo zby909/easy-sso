@@ -26,7 +26,7 @@
     }
   ],
   "paths": {
-    "/auth/verification/send": {
+    "/api/auth/verification/send": {
       "post": {
         "tags": ["认证"],
         "summary": "发送验证码",
@@ -85,7 +85,7 @@
         }
       }
     },
-    "/auth/register": {
+    "/api/auth/register": {
       "post": {
         "tags": ["认证"],
         "summary": "用户注册",
@@ -164,7 +164,7 @@
         }
       }
     },
-    "/auth/login": {
+    "/api/auth/login": {
       "post": {
         "tags": ["认证"],
         "summary": "用户登录",
@@ -247,7 +247,7 @@
         }
       }
     },
-    "/auth/authorize": {
+    "/api/auth/authorize": {
       "get": {
         "tags": ["OAuth2.0"],
         "summary": "获取授权码",
@@ -376,7 +376,7 @@
         }
       }
     },
-    "/auth/token": {
+    "/api/auth/token": {
       "post": {
         "tags": ["OAuth2.0"],
         "summary": "获取访问令牌",
@@ -469,7 +469,7 @@
         }
       }
     },
-    "/auth/refresh": {
+    "/api/auth/refresh": {
       "post": {
         "tags": ["OAuth2.0"],
         "summary": "刷新访问令牌",
@@ -562,7 +562,7 @@
         }
       }
     },
-    "/auth/logout/token": {
+    "/api/auth/logout/token": {
       "post": {
         "tags": ["OAuth2.0"],
         "summary": "注销令牌",
@@ -614,7 +614,7 @@
         }
       }
     },
-    "/auth/logout/center": {
+    "/api/auth/logout/center": {
       "post": {
         "tags": ["认证"],
         "summary": "注销登录中心",
@@ -642,10 +642,95 @@
           }
         }
       }
+    },
+    "/api/auth/userinfo": {
+      "get": {
+        "tags": ["认证"],
+        "summary": "获取当前用户信息",
+        "description": "获取当前已登录用户的基本信息。需要有效的会话。",
+        "security": [
+          {
+            "SessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功获取用户信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessResponse" },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/UserInfo"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权，需要登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "用户不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "UserInfo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "用户ID",
+            "example": 1
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "用户邮箱",
+            "example": "user@example.com"
+          },
+          "name": {
+            "type": "string",
+            "description": "用户名",
+            "example": "testuser"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "账户创建时间"
+          },
+          "lastLoginAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "上次登录时间",
+            "nullable": true
+          }
+        }
+      },
       "SuccessResponse": {
         "type": "object",
         "properties": {

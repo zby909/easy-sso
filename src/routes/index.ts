@@ -9,7 +9,9 @@
 import Router from '@koa/router';
 import authRoutes from './authRoutes.ts';
 
-const router = new Router();
+const router = new Router({
+  prefix: '/api',
+});
 
 router.use(authRoutes.routes(), authRoutes.allowedMethods());
 
